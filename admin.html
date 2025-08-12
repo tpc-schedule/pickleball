@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TPC Admin</title>
+<style>
+  :root{ --bg:#0f172a; --card:#1b2436; --text:#e8ecef; --accent:#6cc24a; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);padding:16px;border-radius:12px;margin-bottom:16px;border:1px solid rgba(255,255,255,.08)}
+  h1{margin:0 0 12px;font-size:22px}
+  label{display:block;margin:8px 0 4px}
+  input,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:#0e1a2d;color:var(--text)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row > *{flex:1 1 200px}
+  .right{display:flex;gap:8px;justify-content:flex-end}
+  table{width:100%;border-collapse:collapse;margin-top:12px}
+  th,td{border:1px solid rgba(255,255,255,.12);padding:8px;text-align:left}
+  th{background:rgba(255,255,255,.06)}
+  .muted{opacity:.85;font-size:.9rem}
+  .pill{display:inline-block;background:var(--accent);color:#0f172a;padding:2px 8px;border-radius:999px;font-weight:800}
+  .days{display:flex;flex-wrap:wrap;gap:10px}
+  .days label{display:flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Admin • The Pickleball Center <span class="pill">Schedule</span></h1>
+    <div class="row">
+      <div>
+        <label for="venue">Venue</label>
+        <input id="venue" placeholder="WalterMart Sta. Maria" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="saveVenue">Save Venue</button>
+      </div>
+    </div>
+    <p class="muted">Manage events for Court 1 & Court 2, set blocked days (e.g., Sun–Wed), and choose Court 2's default availability.</p>
+  </div>
+
+  <div class="card">
+    <h1>Settings</h1>
+    <div class="row">
+      <div>
+        <label>Blocked Days</label>
+        <div class="days">
+          <label><input type="checkbox" class="day" value="0"> Sun</label>
+          <label><input type="checkbox" class="day" value="1"> Mon</label>
+          <label><input type="checkbox" class="day" value="2"> Tue</label>
+          <label><input type="checkbox" class="day" value="3"> Wed</label>
+          <label><input type="checkbox" class="day" value="4"> Thu</label>
+          <label><input type="checkbox" class="day" value="5"> Fri</label>
+          <label><input type="checkbox" class="day" value="6"> Sat</label>
+        </div>
+      </div>
+      <div>
+        <label>Court 2 default availability</label>
+        <div><input type="checkbox" id="court2Default"> Show Court 2 as Available when there is no event</div>
+      </div>
+    </div>
+    <div class="right" style="margin-top:10px">
+      <button id="saveSettings">Save Settings</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>Add / Update Event</h1>
+    <div class="row">
+      <div>
+        <label for="date">Date</label>
+        <input type="date" id="date" />
+      </div>
+      <div>
+        <label for="time">Start Time (hourly)</label>
+        <select id="time"></select>
+      </div>
+      <div>
+        <label for="court">Court</label>
+        <select id="court">
+          <option value="1">Court 1</option>
+          <option value="2">Court 2</option>
+        </select>
+      </div>
+      <div>
+        <label for="program">Program</label>
+        <select id="program">
+          <option>Court Rental</option>
+          <option>Open Play</option>
+          <option>Clinic</option>
+          <option>Tournament</option>
+          <option>Maintenance</option>
+          <option>Free Trial</option>
+          <option>Not Available</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="title">Optional Title/Notes</label>
+        <input id="title" placeholder="e.g., Beginners Group" />
+      </div>
+      <div class="right" style="align-items:flex-end">
+        <button id="saveEvent">Save / Update</button>
+        <button id="deleteEvent">Delete This Slot</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>Events (All Courts)</h1>
+    <table id="eventsTable">
+      <thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Program</th><th>Title</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const KEY = 'tpc_schedule_data';
+  const slotStartHour = 9, slotEndStartHour = 21; // 9:00-10:00 ... 21:00-22:00
+  const $ = id => document.getElementById(id);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  function defaults(){
+    return { 
+      venue:'WalterMart Sta. Maria', 
+      events:[], 
+      settings:{ blockedDays:[0,1,2,3], court2DefaultAvailable:false } 
+    };
+  }
+
+  function loadData(){
+    try { return Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY)) || {}); }
+    catch { return defaults(); }
+  }
+  function saveData(data){
+    localStorage.setItem(KEY, JSON.stringify(data));
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: JSON.stringify(data) }));
+  }
+
+  function fmtHour(h){ const h12=(h%12)||12, am=h<12?'AM':'PM'; return String(h12).padStart(2,'0')+':00 '+am; }
+
+  // Fill time options as ranges
+  (function(){
+    for(let h=slotStartHour; h<=slotEndStartHour; h++){
+      const opt=document.createElement('option');
+      opt.value = String(h).padStart(2,'0') + ':00';             // stored value
+      opt.textContent = fmtHour(h)+' - '+fmtHour(h+1);           // shown label
+      $('time').appendChild(opt);
+    }
+  })();
+
+  // Init
+  (function(){
+    const init = loadData();
+    $('venue').value = init.venue || 'WalterMart Sta. Maria';
+    $('date').valueAsDate = new Date();
+    const blocked = new Set((init.settings && init.settings.blockedDays) || [0,1,2,3]);
+    $('court2Default').checked = !!(init.settings && init.settings.court2DefaultAvailable);
+    $$('.day').forEach(cb => { cb.checked = blocked.has(Number(cb.value)); });
+    refreshTable();
+  })();
+
+  $('saveVenue').onclick = ()=>{
+    const d = loadData();
+    d.venue = $('venue').value.trim() || 'WalterMart Sta. Maria';
+    saveData(d);
+    alert('Venue saved.');
+  };
+
+  $('saveSettings').onclick = ()=>{
+    const d = loadData();
+    const blocked = $$('.day').filter(cb=>cb.checked).map(cb=>Number(cb.value));
+    d.settings = d.settings || {};
+    d.settings.blockedDays = blocked;
+    d.settings.court2DefaultAvailable = $('court2Default').checked;
+    saveData(d);
+    alert('Settings saved.');
+  };
+
+  function refreshTable(){
+    const {events} = loadData();
+    const tbody = document.getElementById('eventsTable').querySelector('tbody');
+    tbody.innerHTML = '';
+    events
+      .slice()
+      .sort((a,b)=> (a.date+a.time+String(a.court)).localeCompare(b.date+b.time+String(b.court)))
+      .forEach(e=>{
+        const tr=document.createElement('tr');
+        const start = Number(e.time.split(':')[0]);
+        const label = fmtHour(start) + ' - ' + fmtHour(start+1);
+        tr.innerHTML = `<td>${e.date}</td><td>${label}</td><td>${e.court}</td><td>${e.program}</td><td>${e.title||''}</td>`;
+        tbody.appendChild(tr);
+      });
+  }
+
+  $('saveEvent').onclick = ()=>{
+    const d = loadData();
+    const date = $('date').value;
+    const time = $('time').value;
+    const court = Number($('court').value);
+    const program = $('program').value;
+    const title = $('title').value.trim();
+    if(!date || !time){ alert('Please pick a date and time.'); return; }
+    const idx = d.events.findIndex(e => e.date===date && e.time===time && Number(e.court)===court);
+    const rec = { date, time, court, program, title };
+    if(idx >= 0) d.events[idx] = rec; else d.events.push(rec);
+    saveData(d);
+    refreshTable();
+    alert('Saved.');
+  };
+
+  $('deleteEvent').onclick = ()=>{
+    const d = loadData();
+    const date = $('date').value;
+    const time = $('time').value;
+    const court = Number($('court').value);
+    if(!date || !time){ alert('Pick date and time to delete.'); return; }
+    d.events = d.events.filter(e => !(e.date===date && e.time===time && Number(e.court)===court));
+    saveData(d);
+    refreshTable();
+    alert('Deleted (if existed).');
+  };
+</script>
+</body>
+</html>
