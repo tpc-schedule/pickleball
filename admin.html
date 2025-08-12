@@ -26,11 +26,16 @@
   .auth{display:flex;gap:8px;align-items:end;margin-bottom:8px;flex-wrap:wrap}
   .hide{display:none}
   .note{font-size:.9rem;opacity:.85;margin-top:6px}
+  .linkbar{display:flex;gap:12px;margin-bottom:8px}
+  .alink{color:var(--accent);text-decoration:none}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
+    <div class="linkbar">
+      <a class="alink" href="./index.html">← View public schedule</a>
+    </div>
     <h1>Admin • The Pickleball Center <span class="pill">Schedule</span></h1>
     <div class="auth">
       <div>
@@ -118,7 +123,7 @@
           <button id="deleteEvent">Delete This Slot</button>
         </div>
       </div>
-      <p class="note">Saving/updating uses a unique (date + hour + court) so each time slot per court is one row.</p>
+      <p class="note">Each (date + hour + court) is one slot. Saving again overwrites that slot.</p>
     </div>
 
     <div class="card">
@@ -142,8 +147,9 @@
 
 <!-- SUPABASE -->
 <script type="module">
-  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-  // Your project URL + anon key (safe in browser with RLS policies)
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // ✅ Your project details
   const SUPABASE_URL = 'https://azjzxrvmpptgwdlnezn.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6anp4cnZtcHB0Z3d2ZGxuZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODU3NzUsImV4cCI6MjA3MDU2MTc3NX0.bZXYXyuTjjieHSOpfHgBcwaZa0NX0aROhf9UvfcrJi4';
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -155,14 +161,12 @@
   const fmtHour = h => { const h12=(h%12)||12, am=h<12?'AM':'PM'; return String(h12).padStart(2,'0')+':00 '+am; };
 
   // Fill hourly time options
-  (function(){
-    for(let h=slotStartHour; h<=slotEndStartHour; h++){
-      const opt=document.createElement('option');
-      opt.value=String(h);
-      opt.textContent = fmtHour(h)+' - '+fmtHour(h+1);
-      $('time').appendChild(opt);
-    }
-  })();
+  for(let h=slotStartHour; h<=slotEndStartHour; h++){
+    const opt=document.createElement('option');
+    opt.value=String(h);
+    opt.textContent = fmtHour(h)+' - '+fmtHour(h+1);
+    $('time').appendChild(opt);
+  }
 
   // Default dates
   $('date').valueAsDate = new Date();
@@ -186,10 +190,14 @@
   }
 
   $('loginBtn').onclick = async ()=>{
-    const email=$('email').value.trim(), password=$('password').value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if(error){ alert(error.message); return; }
-    updateAuthUI(data.session);
+    try{
+      const email=$('email').value.trim(), password=$('password').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      updateAuthUI(data.session);
+    }catch(err){
+      alert(err.message || 'Failed to sign in');
+    }
   };
 
   $('logoutBtn').onclick = async ()=>{
@@ -197,7 +205,7 @@
     updateAuthUI(null);
   };
 
-  // On load: restore session if present
+  // Restore session on load
   const { data: { session } } = await supabase.auth.getSession();
   updateAuthUI(session);
   supabase.auth.onAuthStateChange((_event, sess)=> updateAuthUI(sess));
@@ -214,12 +222,16 @@
   }
 
   $('saveSettings').onclick = async ()=>{
-    const blocked = $$('.day').filter(cb=>cb.checked).map(cb=>Number(cb.value));
-    const venue = $('venue').value.trim() || 'WalterMart Sta. Maria';
-    const court2Default = $('court2Default').checked;
-    const { error } = await supabase.from('settings').upsert({ id:1, venue, blocked_days:blocked, court2_default_available:court2Default });
-    if(error){ alert(error.message); return; }
-    alert('Settings saved.');
+    try{
+      const blocked = $$('.day').filter(cb=>cb.checked).map(cb=>Number(cb.value));
+      const venue = $('venue').value.trim() || 'WalterMart Sta. Maria';
+      const court2Default = $('court2Default').checked;
+      const { error } = await supabase.from('settings').upsert({ id:1, venue, blocked_days:blocked, court2_default_available:court2Default });
+      if(error) throw error;
+      alert('Settings saved.');
+    }catch(err){
+      alert(err.message || 'Failed to save settings');
+    }
   };
 
   // EVENTS (selected date list)
@@ -240,28 +252,36 @@
 
   // SAVE / DELETE EVENT
   $('saveEvent').onclick = async ()=>{
-    const date = $('date').value;
-    const hour = Number($('time').value);
-    const court = Number($('court').value);
-    const program = $('program').value;
-    const title = $('title').value.trim();
-    if(!date || Number.isNaN(hour)){ alert('Please pick date and time.'); return; }
-    const { error } = await supabase.from('events').upsert({ date, hour, court, program, title });
-    if(error){ alert(error.message); return; }
-    await refreshEventsForSelectedDate();
-    alert('Saved.');
+    try{
+      const date = $('date').value;
+      const hour = Number($('time').value);
+      const court = Number($('court').value);
+      const program = $('program').value;
+      const title = $('title').value.trim();
+      if(!date || Number.isNaN(hour)){ alert('Please pick date and time.'); return; }
+      const { error } = await supabase.from('events').upsert({ date, hour, court, program, title });
+      if(error) throw error;
+      await refreshEventsForSelectedDate();
+      alert('Saved.');
+    }catch(err){
+      alert(err.message || 'Failed to save');
+    }
   };
 
   $('deleteEvent').onclick = async ()=>{
-    const date = $('date').value;
-    const hour = Number($('time').value);
-    const court = Number($('court').value);
-    if(!date || Number.isNaN(hour)){ alert('Pick date and time to delete.'); return; }
-    const { error } = await supabase.from('events').delete()
-      .eq('date',date).eq('hour',hour).eq('court',court);
-    if(error){ alert(error.message); return; }
-    await refreshEventsForSelectedDate();
-    alert('Deleted (if existed).');
+    try{
+      const date = $('date').value;
+      const hour = Number($('time').value);
+      const court = Number($('court').value);
+      if(!date || Number.isNaN(hour)){ alert('Pick date and time to delete.'); return; }
+      const { error } = await supabase.from('events').delete()
+        .eq('date',date).eq('hour',hour).eq('court',court);
+      if(error) throw error;
+      await refreshEventsForSelectedDate();
+      alert('Deleted (if existed).');
+    }catch(err){
+      alert(err.message || 'Failed to delete');
+    }
   };
 </script>
 </body>
