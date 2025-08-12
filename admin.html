@@ -14,7 +14,7 @@
   label{display:block;margin:8px 0 4px}
   input,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:#0e1a2d;color:var(--text)}
   .row{display:flex;gap:10px;flex-wrap:wrap}
-  .row > *{flex:1 1 200px}
+  .row > *{flex:1 1 220px}
   .right{display:flex;gap:8px;justify-content:flex-end}
   table{width:100%;border-collapse:collapse;margin-top:12px}
   th,td{border:1px solid rgba(255,255,255,.12);padding:8px;text-align:left}
@@ -23,206 +23,244 @@
   .pill{display:inline-block;background:var(--accent);color:#0f172a;padding:2px 8px;border-radius:999px;font-weight:800}
   .days{display:flex;flex-wrap:wrap;gap:10px}
   .days label{display:flex;align-items:center;gap:6px}
+  .auth{display:flex;gap:8px;align-items:end;margin-bottom:8px;flex-wrap:wrap}
+  .hide{display:none}
+  .note{font-size:.9rem;opacity:.85;margin-top:6px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
     <h1>Admin • The Pickleball Center <span class="pill">Schedule</span></h1>
-    <div class="row">
+    <div class="auth">
       <div>
-        <label for="venue">Venue</label>
-        <input id="venue" placeholder="WalterMart Sta. Maria" />
+        <label>Email</label><input id="email" placeholder="you@example.com">
       </div>
       <div>
-        <label>&nbsp;</label>
-        <button id="saveVenue">Save Venue</button>
+        <label>Password</label><input id="password" type="password" placeholder="••••••••">
       </div>
+      <button id="loginBtn">Sign In</button>
+      <button id="logoutBtn" class="hide">Sign Out</button>
+      <span id="authState" class="muted"></span>
     </div>
-    <p class="muted">Manage events for Court 1 & Court 2, set blocked days (e.g., Sun–Wed), and choose Court 2's default availability.</p>
+    <p class="muted">Sign in with your admin account to edit settings and events.</p>
   </div>
 
-  <div class="card">
-    <h1>Settings</h1>
-    <div class="row">
-      <div>
-        <label>Blocked Days</label>
-        <div class="days">
-          <label><input type="checkbox" class="day" value="0"> Sun</label>
-          <label><input type="checkbox" class="day" value="1"> Mon</label>
-          <label><input type="checkbox" class="day" value="2"> Tue</label>
-          <label><input type="checkbox" class="day" value="3"> Wed</label>
-          <label><input type="checkbox" class="day" value="4"> Thu</label>
-          <label><input type="checkbox" class="day" value="5"> Fri</label>
-          <label><input type="checkbox" class="day" value="6"> Sat</label>
+  <div id="adminBlocks" class="hide">
+    <div class="card">
+      <h1>Settings</h1>
+      <div class="row">
+        <div>
+          <label for="venue">Venue</label>
+          <input id="venue" placeholder="WalterMart Sta. Maria" />
+        </div>
+        <div>
+          <label>Blocked Days</label>
+          <div class="days">
+            <label><input type="checkbox" class="day" value="0"> Sun</label>
+            <label><input type="checkbox" class="day" value="1"> Mon</label>
+            <label><input type="checkbox" class="day" value="2"> Tue</label>
+            <label><input type="checkbox" class="day" value="3"> Wed</label>
+            <label><input type="checkbox" class="day" value="4"> Thu</label>
+            <label><input type="checkbox" class="day" value="5"> Fri</label>
+            <label><input type="checkbox" class="day" value="6"> Sat</label>
+          </div>
+        </div>
+        <div>
+          <label>Court 2 default availability</label>
+          <div><input type="checkbox" id="court2Default"> Show Court 2 as Available when there is no event</div>
         </div>
       </div>
-      <div>
-        <label>Court 2 default availability</label>
-        <div><input type="checkbox" id="court2Default"> Show Court 2 as Available when there is no event</div>
+      <div class="right" style="margin-top:10px">
+        <button id="saveSettings">Save Settings</button>
       </div>
+      <p class="note">These settings apply to the public schedule immediately.</p>
     </div>
-    <div class="right" style="margin-top:10px">
-      <button id="saveSettings">Save Settings</button>
-    </div>
-  </div>
 
-  <div class="card">
-    <h1>Add / Update Event</h1>
-    <div class="row">
-      <div>
-        <label for="date">Date</label>
-        <input type="date" id="date" />
+    <div class="card">
+      <h1>Add / Update Event</h1>
+      <div class="row">
+        <div>
+          <label for="date">Date</label>
+          <input type="date" id="date" />
+        </div>
+        <div>
+          <label for="time">Start Time (hourly)</label>
+          <select id="time"></select>
+        </div>
+        <div>
+          <label for="court">Court</label>
+          <select id="court">
+            <option value="1">Court 1</option>
+            <option value="2">Court 2</option>
+          </select>
+        </div>
+        <div>
+          <label for="program">Program</label>
+          <select id="program">
+            <option>Court Rental</option>
+            <option>Open Play</option>
+            <option>Clinic</option>
+            <option>Tournament</option>
+            <option>Maintenance</option>
+            <option>Free Trial</option>
+            <option>Not Available</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <label for="time">Start Time (hourly)</label>
-        <select id="time"></select>
+      <div class="row">
+        <div>
+          <label for="title">Optional Title/Notes</label>
+          <input id="title" placeholder="e.g., Beginners Group" />
+        </div>
+        <div class="right" style="align-items:flex-end">
+          <button id="saveEvent">Save / Update</button>
+          <button id="deleteEvent">Delete This Slot</button>
+        </div>
       </div>
-      <div>
-        <label for="court">Court</label>
-        <select id="court">
-          <option value="1">Court 1</option>
-          <option value="2">Court 2</option>
-        </select>
-      </div>
-      <div>
-        <label for="program">Program</label>
-        <select id="program">
-          <option>Court Rental</option>
-          <option>Open Play</option>
-          <option>Clinic</option>
-          <option>Tournament</option>
-          <option>Maintenance</option>
-          <option>Free Trial</option>
-          <option>Not Available</option>
-        </select>
-      </div>
+      <p class="note">Saving/updating uses a unique (date + hour + court) so each time slot per court is one row.</p>
     </div>
-    <div class="row">
-      <div>
-        <label for="title">Optional Title/Notes</label>
-        <input id="title" placeholder="e.g., Beginners Group" />
-      </div>
-      <div class="right" style="align-items:flex-end">
-        <button id="saveEvent">Save / Update</button>
-        <button id="deleteEvent">Delete This Slot</button>
-      </div>
-    </div>
-  </div>
 
-  <div class="card">
-    <h1>Events (All Courts)</h1>
-    <table id="eventsTable">
-      <thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Program</th><th>Title</th></tr></thead>
-      <tbody></tbody>
-    </table>
+    <div class="card">
+      <h1>Events (selected date)</h1>
+      <div class="row">
+        <div>
+          <label for="listDate">Pick Date to View</label>
+          <input type="date" id="listDate" />
+        </div>
+        <div style="align-self:flex-end">
+          <button id="refreshList">Refresh</button>
+        </div>
+      </div>
+      <table id="eventsTable">
+        <thead><tr><th>Time</th><th>Court</th><th>Program</th><th>Title</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
-<script>
-  const KEY = 'tpc_schedule_data';
-  const slotStartHour = 9, slotEndStartHour = 21; // 9:00-10:00 ... 21:00-22:00
+<!-- SUPABASE -->
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+  // Your project URL + anon key (safe in browser with RLS policies)
+  const SUPABASE_URL = 'https://azjzxrvmpptgwdlnezn.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6anp4cnZtcHB0Z3d2ZGxuZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODU3NzUsImV4cCI6MjA3MDU2MTc3NX0.bZXYXyuTjjieHSOpfHgBcwaZa0NX0aROhf9UvfcrJi4';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // UI helpers
+  const slotStartHour=9, slotEndStartHour=21;
   const $ = id => document.getElementById(id);
   const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const fmtHour = h => { const h12=(h%12)||12, am=h<12?'AM':'PM'; return String(h12).padStart(2,'0')+':00 '+am; };
 
-  function defaults(){
-    return { 
-      venue:'WalterMart Sta. Maria', 
-      events:[], 
-      settings:{ blockedDays:[0,1,2,3], court2DefaultAvailable:false } 
-    };
-  }
-
-  function loadData(){
-    try { return Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY)) || {}); }
-    catch { return defaults(); }
-  }
-  function saveData(data){
-    localStorage.setItem(KEY, JSON.stringify(data));
-    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: JSON.stringify(data) }));
-  }
-
-  function fmtHour(h){ const h12=(h%12)||12, am=h<12?'AM':'PM'; return String(h12).padStart(2,'0')+':00 '+am; }
-
-  // Fill time options as ranges
+  // Fill hourly time options
   (function(){
     for(let h=slotStartHour; h<=slotEndStartHour; h++){
       const opt=document.createElement('option');
-      opt.value = String(h).padStart(2,'0') + ':00';             // stored value
-      opt.textContent = fmtHour(h)+' - '+fmtHour(h+1);           // shown label
+      opt.value=String(h);
+      opt.textContent = fmtHour(h)+' - '+fmtHour(h+1);
       $('time').appendChild(opt);
     }
   })();
 
-  // Init
-  (function(){
-    const init = loadData();
-    $('venue').value = init.venue || 'WalterMart Sta. Maria';
-    $('date').valueAsDate = new Date();
-    const blocked = new Set((init.settings && init.settings.blockedDays) || [0,1,2,3]);
-    $('court2Default').checked = !!(init.settings && init.settings.court2DefaultAvailable);
-    $$('.day').forEach(cb => { cb.checked = blocked.has(Number(cb.value)); });
-    refreshTable();
-  })();
+  // Default dates
+  $('date').valueAsDate = new Date();
+  $('listDate').valueAsDate = new Date();
 
-  $('saveVenue').onclick = ()=>{
-    const d = loadData();
-    d.venue = $('venue').value.trim() || 'WalterMart Sta. Maria';
-    saveData(d);
-    alert('Venue saved.');
+  // AUTH
+  async function updateAuthUI(session){
+    if(session?.user){
+      $('authState').textContent = 'Signed in as ' + (session.user.email||'');
+      $('loginBtn').classList.add('hide');
+      $('logoutBtn').classList.remove('hide');
+      $('adminBlocks').classList.remove('hide');
+      await initSettings();
+      await refreshEventsForSelectedDate();
+    }else{
+      $('authState').textContent = 'Not signed in';
+      $('loginBtn').classList.remove('hide');
+      $('logoutBtn').classList.add('hide');
+      $('adminBlocks').classList.add('hide');
+    }
+  }
+
+  $('loginBtn').onclick = async ()=>{
+    const email=$('email').value.trim(), password=$('password').value;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error){ alert(error.message); return; }
+    updateAuthUI(data.session);
   };
 
-  $('saveSettings').onclick = ()=>{
-    const d = loadData();
+  $('logoutBtn').onclick = async ()=>{
+    await supabase.auth.signOut();
+    updateAuthUI(null);
+  };
+
+  // On load: restore session if present
+  const { data: { session } } = await supabase.auth.getSession();
+  updateAuthUI(session);
+  supabase.auth.onAuthStateChange((_event, sess)=> updateAuthUI(sess));
+
+  // SETTINGS
+  async function initSettings(){
+    const { data, error } = await supabase.from('settings').select('*').eq('id',1).maybeSingle();
+    if(error){ console.warn('Load settings error', error); return; }
+    const s = data || { venue:'WalterMart Sta. Maria', blocked_days:[0,1,2,3], court2_default_available:false };
+    $('venue').value = s.venue || '';
+    const set = new Set(s.blocked_days || []);
+    $$('.day').forEach(cb => cb.checked = set.has(Number(cb.value)));
+    $('court2Default').checked = !!s.court2_default_available;
+  }
+
+  $('saveSettings').onclick = async ()=>{
     const blocked = $$('.day').filter(cb=>cb.checked).map(cb=>Number(cb.value));
-    d.settings = d.settings || {};
-    d.settings.blockedDays = blocked;
-    d.settings.court2DefaultAvailable = $('court2Default').checked;
-    saveData(d);
+    const venue = $('venue').value.trim() || 'WalterMart Sta. Maria';
+    const court2Default = $('court2Default').checked;
+    const { error } = await supabase.from('settings').upsert({ id:1, venue, blocked_days:blocked, court2_default_available:court2Default });
+    if(error){ alert(error.message); return; }
     alert('Settings saved.');
   };
 
-  function refreshTable(){
-    const {events} = loadData();
-    const tbody = document.getElementById('eventsTable').querySelector('tbody');
-    tbody.innerHTML = '';
-    events
-      .slice()
-      .sort((a,b)=> (a.date+a.time+String(a.court)).localeCompare(b.date+b.time+String(b.court)))
-      .forEach(e=>{
-        const tr=document.createElement('tr');
-        const start = Number(e.time.split(':')[0]);
-        const label = fmtHour(start) + ' - ' + fmtHour(start+1);
-        tr.innerHTML = `<td>${e.date}</td><td>${label}</td><td>${e.court}</td><td>${e.program}</td><td>${e.title||''}</td>`;
-        tbody.appendChild(tr);
-      });
+  // EVENTS (selected date list)
+  async function refreshEventsForSelectedDate(){
+    const dateISO = $('listDate').value || $('date').value;
+    if(!dateISO) return;
+    const { data, error } = await supabase.from('events').select('*').eq('date', dateISO).order('hour');
+    const tbody = $('eventsTable').querySelector('tbody'); tbody.innerHTML='';
+    if(error){ tbody.innerHTML='<tr><td colspan="4">Error loading</td></tr>'; return; }
+    (data||[]).forEach(e=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${fmtHour(e.hour)} - ${fmtHour(e.hour+1)}</td><td>${e.court}</td><td>${e.program}</td><td>${e.title||''}</td>`;
+      tbody.appendChild(tr);
+    });
   }
+  $('refreshList').onclick = refreshEventsForSelectedDate;
+  $('listDate').addEventListener('change', refreshEventsForSelectedDate);
 
-  $('saveEvent').onclick = ()=>{
-    const d = loadData();
+  // SAVE / DELETE EVENT
+  $('saveEvent').onclick = async ()=>{
     const date = $('date').value;
-    const time = $('time').value;
+    const hour = Number($('time').value);
     const court = Number($('court').value);
     const program = $('program').value;
     const title = $('title').value.trim();
-    if(!date || !time){ alert('Please pick a date and time.'); return; }
-    const idx = d.events.findIndex(e => e.date===date && e.time===time && Number(e.court)===court);
-    const rec = { date, time, court, program, title };
-    if(idx >= 0) d.events[idx] = rec; else d.events.push(rec);
-    saveData(d);
-    refreshTable();
+    if(!date || Number.isNaN(hour)){ alert('Please pick date and time.'); return; }
+    const { error } = await supabase.from('events').upsert({ date, hour, court, program, title });
+    if(error){ alert(error.message); return; }
+    await refreshEventsForSelectedDate();
     alert('Saved.');
   };
 
-  $('deleteEvent').onclick = ()=>{
-    const d = loadData();
+  $('deleteEvent').onclick = async ()=>{
     const date = $('date').value;
-    const time = $('time').value;
+    const hour = Number($('time').value);
     const court = Number($('court').value);
-    if(!date || !time){ alert('Pick date and time to delete.'); return; }
-    d.events = d.events.filter(e => !(e.date===date && e.time===time && Number(e.court)===court));
-    saveData(d);
-    refreshTable();
+    if(!date || Number.isNaN(hour)){ alert('Pick date and time to delete.'); return; }
+    const { error } = await supabase.from('events').delete()
+      .eq('date',date).eq('hour',hour).eq('court',court);
+    if(error){ alert(error.message); return; }
+    await refreshEventsForSelectedDate();
     alert('Deleted (if existed).');
   };
 </script>
