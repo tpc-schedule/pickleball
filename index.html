@@ -107,8 +107,15 @@
     </div>
   </div>
 
-<script>
-  const KEY = 'tpc_schedule_data';
+<!-- Supabase (read-only) -->
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // Your project (from Settings → API)
+  const SUPABASE_URL = 'https://azjzxrvmpptgwdlnezn.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6anp4cnZtcHB0Z3d2ZGxuZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODU3NzUsImV4cCI6MjA3MDU2MTc3NX0.bZXYXyuTjjieHSOpfHgBcwaZa0NX0aROhf9UvfcrJi4';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   const PROGRAM_CLASS = {
     'Court Rental':'event-court-rental',
     'Open Play':'event-open-play',
@@ -119,55 +126,64 @@
     'Not Available':'event-not-available'
   };
 
-  let events = [];
-  let venue = 'WalterMart Sta. Maria';
-  let settings = { blockedDays:[0,1,2,3], court2DefaultAvailable:false };
+  let settings = { blocked_days:[0,1,2,3], court2_default_available:false, venue:'WalterMart Sta. Maria' };
   let currentDate = new Date();
 
-  function loadData(){
-    try{
-      const d = JSON.parse(localStorage.getItem(KEY)) || {};
-      events = d.events || [];
-      venue = d.venue || venue;
-      settings = Object.assign({ blockedDays:[0,1,2,3], court2DefaultAvailable:false }, d.settings || {});
-    }catch{}
-    const vEl = document.getElementById('venueLine');
-    if(vEl) vEl.textContent = 'Venue: ' + venue;
+  // Formatting helpers
+  const fmtISO = d => { const tz=d.getTimezoneOffset()*60000; return new Date(d.getTime()-tz).toISOString().split('T')[0]; };
+  const fmtHour = h => { const h12=(h%12)||12, am=h<12?'AM':'PM'; return (String(h12).padStart(2,'0'))+':00 '+am; };
+  const fmtRange = start => `${fmtHour(start)} - ${fmtHour(start+1)}`;
+  const fmtFullDate = d => d.toLocaleDateString('en-US',{weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  const isBlockedDay = d => (settings.blocked_days||[]).includes(d.getDay());
+
+  async function loadSettings(){
+    const { data, error } = await supabase.from('settings').select('*').eq('id',1).maybeSingle();
+    if(!error && data){
+      settings = data;
+      const vEl = document.getElementById('venueLine');
+      if(vEl) vEl.textContent = 'Venue: ' + (data.venue || 'WalterMart Sta. Maria');
+    }
   }
 
-  function fmtISO(d){ const tz=d.getTimezoneOffset()*60000; return new Date(d.getTime()-tz).toISOString().split('T')[0]; }
-  function fmtHour(h){ const hour12=(h%12)||12, ampm=h<12?'AM':'PM'; return (String(hour12).padStart(2,'0'))+':00 '+ampm; }
-  function fmtRange(start){ return fmtHour(start)+' - '+fmtHour(start+1); }
-  function fmtFullDate(d){ return d.toLocaleDateString('en-US',{weekday:'long', year:'numeric', month:'long', day:'numeric'}); }
-  function isBlockedDay(d){ return (settings.blockedDays||[]).includes(d.getDay()); }
+  async function loadEvents(dateISO){
+    // events table: date (date), hour (int), court (int), program (text), title (text)
+    const { data, error } = await supabase.from('events')
+      .select('hour,court,program,title')
+      .eq('date', dateISO)
+      .order('hour', { ascending: true });
+    if(error){ console.error(error); return []; }
+    return data || [];
+  }
 
   function displayHeaderDate(d){
     document.getElementById('datePicker').value = fmtISO(d);
     document.getElementById('selectedDateDisplay').textContent = fmtFullDate(d);
   }
 
-  function generateSchedule(date){
+  async function generateSchedule(date){
     const iso = fmtISO(date);
+    const dayEvents = await loadEvents(iso);
     const tbody = document.querySelector('#scheduleTable tbody');
     tbody.innerHTML = '';
 
     for(let start=9; start<=21; start++){
-      const tr = document.createElement('tr');
+      const tr=document.createElement('tr');
 
-      const timeTd = document.createElement('td');
+      const timeTd=document.createElement('td');
       timeTd.textContent = fmtRange(start);
       tr.appendChild(timeTd);
 
       // Court 1
-      const td1 = document.createElement('td');
+      const td1=document.createElement('td');
       if(isBlockedDay(date)){
         td1.className='not-available'; td1.textContent='Not Available';
       } else {
-        const ev1 = events.find(e => e.date===iso && Number(e.court)===1 && Number(e.time.split(':')[0])===start);
+        const ev1 = dayEvents.find(e => Number(e.court)===1 && Number(e.hour)===start);
         if(ev1){
-          td1.className='event-cell ' + (PROGRAM_CLASS[ev1.program]||'');
-          td1.textContent = ev1.program==='Not Available' ? 'Not Available'
-                         : (ev1.title ? `${ev1.program} — ${ev1.title}` : ev1.program);
+          td1.className='event-cell ' + (PROGRAM_CLASS[ev1.program] || '');
+          td1.textContent = ev1.program==='Not Available'
+            ? 'Not Available'
+            : (ev1.title ? `${ev1.program} — ${ev1.title}` : ev1.program);
         } else {
           td1.className='available'; td1.textContent='Available';
         }
@@ -175,17 +191,24 @@
       tr.appendChild(td1);
 
       // Court 2
-      const td2 = document.createElement('td');
-      const ev2 = events.find(e => e.date===iso && Number(e.court)===2 && Number(e.time.split(':')[0])===start);
+      const td2=document.createElement('td');
       if(isBlockedDay(date)){
         td2.className='not-available'; td2.textContent='Not Available';
-      } else if(ev2){
-        td2.className='event-cell ' + (PROGRAM_CLASS[ev2.program]||'');
-        td2.textContent = ev2.program==='Not Available' ? 'Not Available'
-                       : (ev2.title ? `${ev2.program} — ${ev2.title}` : ev2.program);
       } else {
-        if(settings.court2DefaultAvailable){ td2.className='available'; td2.textContent='Available'; }
-        else { td2.className='not-available'; td2.textContent='Not Available'; }
+        const ev2 = dayEvents.find(e => Number(e.court)===2 && Number(e.hour)===start);
+        if(ev2){
+          td2.className='event-cell ' + (PROGRAM_CLASS[ev2.program] || '');
+          td2.textContent = ev2.program==='Not Available'
+            ? 'Not Available'
+            : (ev2.title ? `${ev2.program} — ${ev2.title}` : ev2.program);
+        } else {
+          // Court 2 default availability from settings
+          if(settings.court2_default_available){
+            td2.className='available'; td2.textContent='Available';
+          } else {
+            td2.className='not-available'; td2.textContent='Not Available';
+          }
+        }
       }
       tr.appendChild(td2);
 
@@ -193,13 +216,20 @@
     }
   }
 
+  // Nav handlers
   document.getElementById('prevDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()-1); displayHeaderDate(currentDate); generateSchedule(currentDate); });
   document.getElementById('nextDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()+1); displayHeaderDate(currentDate); generateSchedule(currentDate); });
   document.getElementById('todayBtn').addEventListener('click',()=>{ currentDate=new Date(); displayHeaderDate(currentDate); generateSchedule(currentDate); });
   document.getElementById('datePicker').addEventListener('change',(e)=>{ if(e.target.value){ currentDate = new Date(e.target.value+'T00:00:00'); displayHeaderDate(currentDate); generateSchedule(currentDate);} });
-  window.addEventListener('storage', (e)=>{ if(e.key===KEY){ loadData(); generateSchedule(currentDate); } });
 
-  loadData();
+  // Realtime: refresh when events/settings change
+  supabase.channel('realtime:events')
+    .on('postgres_changes', { event:'*', schema:'public', table:'events' }, () => generateSchedule(currentDate))
+    .on('postgres_changes', { event:'*', schema:'public', table:'settings' }, async () => { await loadSettings(); generateSchedule(currentDate); })
+    .subscribe();
+
+  // Initial load
+  await loadSettings();
   displayHeaderDate(currentDate);
   generateSchedule(currentDate);
 </script>
