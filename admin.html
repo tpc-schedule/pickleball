@@ -13,6 +13,7 @@
   h1{margin:0 0 12px;font-size:22px}
   label{display:block;margin:8px 0 4px}
   input,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:#0e1a2d;color:var(--text)}
+  button{cursor:pointer}
   .row{display:flex;gap:10px;flex-wrap:wrap}
   .row > *{flex:1 1 220px}
   .right{display:flex;gap:8px;justify-content:flex-end}
@@ -47,6 +48,7 @@
   </div>
 
   <div id="adminBlocks" class="hide">
+    <!-- SETTINGS -->
     <div class="card">
       <h1>Settings</h1>
       <div class="row">
@@ -76,6 +78,7 @@
       </div>
     </div>
 
+    <!-- ADD / UPDATE EVENT -->
     <div class="card">
       <h1>Add / Update Event</h1>
       <div class="row">
@@ -102,6 +105,7 @@
       <p class="muted">Each (date + hour + court) is one slot. Saving again overwrites that slot.</p>
     </div>
 
+    <!-- EVENTS LIST -->
     <div class="card">
       <h1>Events (selected date)</h1>
       <div class="row">
@@ -109,7 +113,15 @@
         <div style="align-self:flex-end"><button id="refreshList">Refresh</button></div>
       </div>
       <table id="eventsTable">
-        <thead><tr><th>Time</th><th>Court</th><th>Program</th><th>Title / Venue</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Court</th>
+            <th>Program</th>
+            <th>Title</th>
+            <th>Venue</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -127,7 +139,7 @@
   const $$ = sel => Array.from(document.querySelectorAll(sel));
   const fmtHour = h => { const h12=(h%12)||12, am=h<12?'AM':'PM'; return String(h12).padStart(2,'0')+':00 '+am; };
 
-  // fill hourly times
+  // Fill hourly times
   for(let h=slotStartHour; h<=slotEndStartHour; h++){
     const opt=document.createElement('option');
     opt.value=String(h);
@@ -137,6 +149,7 @@
   $('date').valueAsDate = new Date();
   $('listDate').valueAsDate = new Date();
 
+  // Auth UI
   async function updateAuthUI(session){
     if(session?.user){
       $('authState').textContent = 'Signed in as ' + (session.user.email||'');
@@ -167,6 +180,7 @@
   updateAuthUI(session);
   supabase.auth.onAuthStateChange((_e, sess)=> updateAuthUI(sess));
 
+  // Settings load/save
   async function initSettings(){
     const { data, error } = await supabase.from('settings').select('*').eq('id',1).maybeSingle();
     if(error){ console.warn('Load settings error', error); return; }
@@ -190,22 +204,30 @@
     }catch(err){ alert(err.message || 'Failed to save settings'); }
   };
 
+  // Events list for a date
   async function refreshEventsForSelectedDate(){
     const dateISO = $('listDate').value || $('date').value;
     if(!dateISO) return;
     const { data, error } = await supabase.from('events').select('*').eq('date', dateISO).order('hour');
     const tbody = $('eventsTable').querySelector('tbody'); tbody.innerHTML='';
-    if(error){ tbody.innerHTML='<tr><td colspan="4">Error loading</td></tr>'; return; }
+    if(error){ tbody.innerHTML='<tr><td colspan="5">Error loading</td></tr>'; return; }
     (data||[]).forEach(e=>{
       const tr=document.createElement('tr');
-      const tv = [e.title, e.venue].filter(Boolean).join(' — ');
-      tr.innerHTML = `<td>${fmtHour(e.hour)} - ${fmtHour(e.hour+1)}</td><td>${e.court}</td><td>${e.program}</td><td>${tv}</td>`;
+      const range = `${fmtHour(e.hour)} - ${fmtHour(e.hour + 1)}`;
+      tr.innerHTML = `
+        <td>${range}</td>
+        <td>${e.court}</td>
+        <td>${e.program}</td>
+        <td>${e.title || ''}</td>
+        <td>${e.venue || ''}</td>
+      `;
       tbody.appendChild(tr);
     });
   }
   $('refreshList').onclick = refreshEventsForSelectedDate;
   $('listDate').addEventListener('change', refreshEventsForSelectedDate);
 
+  // Save / Delete
   $('saveEvent').onclick = async ()=>{
     try{
       const date = $('date').value;
