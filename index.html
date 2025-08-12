@@ -6,8 +6,17 @@
 <title>The Pickleball Center – Schedule</title>
 <style>
   :root{
+    /* Brand */
     --brand-bg:#0f172a; --brand-surface:#1b2436; --brand-text:#e8ecef; --brand-accent:#6cc24a;
-    --rental:#ffc2c2; --open-play:#fff59d; --clinic:#ffd8a8; --tournament:#b7f7c5; --maintenance:#ffd8a8; --free-trial:#cfe8ff; --na:#d1d5db;
+    /* Program colors (light) */
+    --rental:#ffc2c2;        /* Court Rental - light red */
+    --open-play:#fff59d;     /* Open Play - light yellow */
+    --clinic:#ffd8a8;        /* Clinic - light orange */
+    --tournament:#b7f7c5;    /* Tournament - light green */
+    --maintenance:#ffd8a8;   /* Maintenance - light orange */
+    --free-trial:#cfe8ff;    /* Free Trial - light blue */
+    --na:#d1d5db;            /* Not Available - light gray */
+    /* Auto status colors */
     --available:#d1fae5; --available-text:#065f46;
     --not-available:#9ca3af; --not-available-text:#1f2937;
   }
@@ -28,23 +37,28 @@
   .legend-title{font-weight:800;color:#d2d8de}
   .legend-item{display:flex;gap:8px;align-items:center;font-size:.95rem;white-space:nowrap}
   .swatch{width:14px;height:14px;border-radius:3px}
-  .selected-date{padding:0 16px;margin:2px 0 10px;font-size:1.05rem;font-weight:700;text-align:center}
-  .venue{padding:0 16px;margin:8px 0 6px;text-align:center;font-weight:600;opacity:.95}
-  .reservation{padding:0 16px;margin:4px 0 14px;text-align:center;font-size:.95rem}
+  .selected-date{padding:0 16px;margin:2px 0 6px;font-size:1.05rem;font-weight:800;text-align:center}
+  /* Venue right under the date (only shown when there are events) */
+  .venue{padding:4px 16px;margin:6px 0;text-align:center;font-weight:700;opacity:.95;border-top:1px solid rgba(255,255,255,.08)}
+  /* Reservation banner */
+  .reservation{display:flex;justify-content:center;margin:10px 16px 14px}
+  .reservation .banner{background:#fde047;color:#1f2937;font-weight:800;padding:10px 14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .reservation .banner a{color:#065f46;text-decoration:none}
+  .reservation .banner a:hover{text-decoration:underline}
   table{width:100%;border-collapse:separate;table-layout:fixed}
   #scheduleTable th, #scheduleTable td{width:33.33%;padding:12px;text-align:center;border:1px solid rgba(255,255,255,.08)}
   thead th{background:rgba(255,255,255,.06);font-weight:800}
   tbody td:first-child{background:rgba(255,255,255,.04);font-weight:700}
   .available{background:var(--available)!important;color:var(--available-text)!important;font-weight:700}
   .not-available{background:var(--not-available)!important;color:var(--not-available-text)!important;font-weight:700}
-  .event-cell{font-weight:800; color:#0f172a;}
-  .event-court-rental{background:var(--rental);}
-  .event-open-play{background:var(--open-play);}
-  .event-clinic{background:var(--clinic);}
-  .event-tournament{background:var(--tournament);}
-  .event-maintenance{background:var(--maintenance);}
-  .event-free-trial{background:var(--free-trial);}
-  .event-not-available{background:var(--na); color:#1f2937;}
+  .event-cell{font-weight:800;color:#0f172a}
+  .event-court-rental{background:var(--rental)}
+  .event-open-play{background:var(--open-play)}
+  .event-clinic{background:var(--clinic)}
+  .event-tournament{background:var(--tournament)}
+  .event-maintenance{background:var(--maintenance)}
+  .event-free-trial{background:var(--free-trial)}
+  .event-not-available{background:var(--na);color:#1f2937}
 </style>
 </head>
 <body>
@@ -79,7 +93,13 @@
 
       <div class="selected-date" id="selectedDateDisplay"></div>
       <div class="venue" id="venueLine" style="display:none"></div>
-      <div class="reservation">For reservation please contact us on our <a href="https://www.facebook.com/profile.php?id=61578231519925" target="_blank" style="color:var(--brand-accent); text-decoration:none;">Facebook Page</a></div>
+
+      <div class="reservation">
+        <div class="banner">
+          For reservation please contact us on our
+          <a href="https://www.facebook.com/profile.php?id=61578231519925" target="_blank">Facebook Page</a>
+        </div>
+      </div>
 
       <table id="scheduleTable">
         <thead>
@@ -111,6 +131,9 @@
   function fmtRange(start){ return fmtHour(start)+' - '+fmtHour(start+1); }
   function fmtFullDate(d){ return d.toLocaleDateString('en-US',{weekday:'long', year:'numeric', month:'long', day:'numeric'}); }
   function isBlockedDay(d){ return (settings.blocked_days||[]).includes(d.getDay()); }
+  function findEvent(iso, court, hour){
+    return events.find(e => e.date===iso && Number(e.court)===court && Number(e.hour)===hour);
+  }
 
   function displayHeaderDate(d){
     document.getElementById('datePicker').value = fmtISO(d);
@@ -126,10 +149,6 @@
     else { venueEl.style.display='none'; }
   }
 
-  function findEvent(iso, court, hour){
-    return events.find(e => e.date===iso && Number(e.court)===court && Number(e.hour)===hour);
-  }
-
   function generateSchedule(date){
     const iso = fmtISO(date);
     const tbody = document.querySelector('#scheduleTable tbody');
@@ -142,7 +161,7 @@
       timeTd.textContent = fmtRange(start);
       tr.appendChild(timeTd);
 
-      // Court 1 (event wins over blocked)
+      // Court 1: event wins, else blocked -> not available, else available
       const td1 = document.createElement('td');
       const ev1 = findEvent(iso, 1, start);
       if (ev1){
@@ -156,7 +175,7 @@
       }
       tr.appendChild(td1);
 
-      // Court 2 (event wins; otherwise follow setting)
+      // Court 2: event wins; otherwise blocked or per default toggle
       const td2 = document.createElement('td');
       const ev2 = findEvent(iso, 2, start);
       if (ev2){
