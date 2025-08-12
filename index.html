@@ -6,17 +6,8 @@
 <title>The Pickleball Center – Schedule</title>
 <style>
   :root{
-    /* Brand */
     --brand-bg:#0f172a; --brand-surface:#1b2436; --brand-text:#e8ecef; --brand-accent:#6cc24a;
-    /* Program colors (light) */
-    --rental:#ffc2c2;        /* Court Rental - light red */
-    --open-play:#fff59d;     /* Open Play - light yellow */
-    --clinic:#ffd8a8;        /* Clinic - light orange */
-    --tournament:#b7f7c5;    /* Tournament - light green */
-    --maintenance:#ffd8a8;   /* Maintenance - light orange */
-    --free-trial:#cfe8ff;    /* Free Trial - light blue */
-    --na:#d1d5db;            /* Not Available - light gray */
-    /* Auto status colors */
+    --rental:#ffc2c2; --open-play:#fff59d; --clinic:#ffd8a8; --tournament:#b7f7c5; --maintenance:#ffd8a8; --free-trial:#cfe8ff; --na:#d1d5db;
     --available:#d1fae5; --available-text:#065f46;
     --not-available:#9ca3af; --not-available-text:#1f2937;
   }
@@ -26,7 +17,6 @@
   .brand{text-align:center;margin-bottom:20px}
   .brand h1{margin:0;font-size:2.4rem;font-weight:800}
   .brand .badge{display:inline-block;margin-top:8px;background:var(--brand-accent);color:#0f172a;font-weight:800;font-size:1.25rem;padding:6px 12px;border-radius:999px}
-  .brand img{height:56px;display:block;margin:0 auto 10px auto}
   .card{background:var(--brand-surface);border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
   .card-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
   .btn{cursor:pointer;padding:8px 12px;border-radius:10px;font-weight:700;background:#0f1b33;color:var(--brand-text);border:1px solid rgba(255,255,255,.12)}
@@ -45,10 +35,8 @@
   #scheduleTable th, #scheduleTable td{width:33.33%;padding:12px;text-align:center;border:1px solid rgba(255,255,255,.08)}
   thead th{background:rgba(255,255,255,.06);font-weight:800}
   tbody td:first-child{background:rgba(255,255,255,.04);font-weight:700}
-  /* Auto status cells */
   .available{background:var(--available)!important;color:var(--available-text)!important;font-weight:700}
   .not-available{background:var(--not-available)!important;color:var(--not-available-text)!important;font-weight:700}
-  /* Program-specific colors for occupied cells */
   .event-cell{font-weight:800; color:#0f172a;}
   .event-court-rental{background:var(--rental);}
   .event-open-play{background:var(--open-play);}
@@ -62,7 +50,6 @@
 <body>
   <div class="container">
     <div class="brand">
-      <img src="tpc-logo.png" alt="The Pickleball Center logo" onerror="this.style.display='none'">
       <h1>The Pickleball Center</h1>
       <span class="badge">Schedule</span>
     </div>
@@ -91,147 +78,128 @@
       </div>
 
       <div class="selected-date" id="selectedDateDisplay"></div>
-      <div class="venue" id="venueLine">Venue: WalterMart Sta. Maria</div>
+      <div class="venue" id="venueLine" style="display:none"></div>
       <div class="reservation">For reservation please contact us on our <a href="https://www.facebook.com/profile.php?id=61578231519925" target="_blank" style="color:var(--brand-accent); text-decoration:none;">Facebook Page</a></div>
 
       <table id="scheduleTable">
         <thead>
-          <tr>
-            <th>Time</th>
-            <th>Court 1</th>
-            <th>Court 2</th>
-          </tr>
+          <tr><th>Time</th><th>Court 1</th><th>Court 2</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
-<!-- Supabase (read-only) -->
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-  // Your project (from Settings → API)
   const SUPABASE_URL = 'https://azjzxrvmpptgwvdlnezn.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6anp4cnZtcHB0Z3d2ZGxuZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODU3NzUsImV4cCI6MjA3MDU2MTc3NX0.bZXYXyuTjjieHSOpfHgBcwaZa0NX0aROhf9UvfcrJi4';
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const PROGRAM_CLASS = {
-    'Court Rental':'event-court-rental',
-    'Open Play':'event-open-play',
-    'Clinic':'event-clinic',
-    'Tournament':'event-tournament',
-    'Maintenance':'event-maintenance',
-    'Free Trial':'event-free-trial',
-    'Not Available':'event-not-available'
+    'Court Rental':'event-court-rental','Open Play':'event-open-play','Clinic':'event-clinic',
+    'Tournament':'event-tournament','Maintenance':'event-maintenance','Free Trial':'event-free-trial','Not Available':'event-not-available'
   };
 
-  let settings = { blocked_days:[0,1,2,3], court2_default_available:false, venue:'WalterMart Sta. Maria' };
+  let settings = { blocked_days:[0,1,2,3], court2_default_available:false };
+  let events = [];
   let currentDate = new Date();
 
-  // Formatting helpers
-  const fmtISO = d => { const tz=d.getTimezoneOffset()*60000; return new Date(d.getTime()-tz).toISOString().split('T')[0]; };
-  const fmtHour = h => { const h12=(h%12)||12, am=h<12?'AM':'PM'; return (String(h12).padStart(2,'0'))+':00 '+am; };
-  const fmtRange = start => `${fmtHour(start)} - ${fmtHour(start+1)}`;
-  const fmtFullDate = d => d.toLocaleDateString('en-US',{weekday:'long', year:'numeric', month:'long', day:'numeric'});
-  const isBlockedDay = d => (settings.blocked_days||[]).includes(d.getDay());
-
-  async function loadSettings(){
-    const { data, error } = await supabase.from('settings').select('*').eq('id',1).maybeSingle();
-    if(!error && data){
-      settings = data;
-      const vEl = document.getElementById('venueLine');
-      if(vEl) vEl.textContent = 'Venue: ' + (data.venue || 'WalterMart Sta. Maria');
-    }
-  }
-
-  async function loadEvents(dateISO){
-    // events table: date (date), hour (int), court (int), program (text), title (text)
-    const { data, error } = await supabase.from('events')
-      .select('hour,court,program,title')
-      .eq('date', dateISO)
-      .order('hour', { ascending: true });
-    if(error){ console.error(error); return []; }
-    return data || [];
-  }
+  function fmtISO(d){ const tz=d.getTimezoneOffset()*60000; return new Date(d.getTime()-tz).toISOString().split('T')[0]; }
+  function fmtHour(h){ const hour12=(h%12)||12, ampm=h<12?'AM':'PM'; return (String(hour12).padStart(2,'0'))+':00 '+ampm; }
+  function fmtRange(start){ return fmtHour(start)+' - '+fmtHour(start+1); }
+  function fmtFullDate(d){ return d.toLocaleDateString('en-US',{weekday:'long', year:'numeric', month:'long', day:'numeric'}); }
+  function isBlockedDay(d){ return (settings.blocked_days||[]).includes(d.getDay()); }
 
   function displayHeaderDate(d){
     document.getElementById('datePicker').value = fmtISO(d);
     document.getElementById('selectedDateDisplay').textContent = fmtFullDate(d);
   }
 
-  async function generateSchedule(date){
+  function setVenueLineForDay(iso){
+    const venueEl = document.getElementById('venueLine');
+    const dayEvents = events.filter(e => e.date === iso);
+    if(!dayEvents.length){ venueEl.style.display='none'; return; }
+    const v = dayEvents.map(e=>e.venue).find(Boolean);
+    if(v){ venueEl.textContent = 'Venue: ' + v; venueEl.style.display=''; }
+    else { venueEl.style.display='none'; }
+  }
+
+  function findEvent(iso, court, hour){
+    return events.find(e => e.date===iso && Number(e.court)===court && Number(e.hour)===hour);
+  }
+
+  function generateSchedule(date){
     const iso = fmtISO(date);
-    const dayEvents = await loadEvents(iso);
     const tbody = document.querySelector('#scheduleTable tbody');
     tbody.innerHTML = '';
 
     for(let start=9; start<=21; start++){
-      const tr=document.createElement('tr');
+      const tr = document.createElement('tr');
 
-      const timeTd=document.createElement('td');
+      const timeTd = document.createElement('td');
       timeTd.textContent = fmtRange(start);
       tr.appendChild(timeTd);
 
-      // Court 1
-      const td1=document.createElement('td');
-      if(isBlockedDay(date)){
+      // Court 1 (event wins over blocked)
+      const td1 = document.createElement('td');
+      const ev1 = findEvent(iso, 1, start);
+      if (ev1){
+        td1.className='event-cell ' + (PROGRAM_CLASS[ev1.program]||'');
+        td1.textContent = ev1.program==='Not Available' ? 'Not Available'
+                       : (ev1.title ? `${ev1.program} — ${ev1.title}` : ev1.program);
+      } else if (isBlockedDay(date)){
         td1.className='not-available'; td1.textContent='Not Available';
       } else {
-        const ev1 = dayEvents.find(e => Number(e.court)===1 && Number(e.hour)===start);
-        if(ev1){
-          td1.className='event-cell ' + (PROGRAM_CLASS[ev1.program] || '');
-          td1.textContent = ev1.program==='Not Available'
-            ? 'Not Available'
-            : (ev1.title ? `${ev1.program} — ${ev1.title}` : ev1.program);
-        } else {
-          td1.className='available'; td1.textContent='Available';
-        }
+        td1.className='available'; td1.textContent='Available';
       }
       tr.appendChild(td1);
 
-      // Court 2
-      const td2=document.createElement('td');
-      if(isBlockedDay(date)){
+      // Court 2 (event wins; otherwise follow setting)
+      const td2 = document.createElement('td');
+      const ev2 = findEvent(iso, 2, start);
+      if (ev2){
+        td2.className='event-cell ' + (PROGRAM_CLASS[ev2.program]||'');
+        td2.textContent = ev2.program==='Not Available' ? 'Not Available'
+                       : (ev2.title ? `${ev2.program} — ${ev2.title}` : ev2.program);
+      } else if (isBlockedDay(date)){
         td2.className='not-available'; td2.textContent='Not Available';
       } else {
-        const ev2 = dayEvents.find(e => Number(e.court)===2 && Number(e.hour)===start);
-        if(ev2){
-          td2.className='event-cell ' + (PROGRAM_CLASS[ev2.program] || '');
-          td2.textContent = ev2.program==='Not Available'
-            ? 'Not Available'
-            : (ev2.title ? `${ev2.program} — ${ev2.title}` : ev2.program);
-        } else {
-          // Court 2 default availability from settings
-          if(settings.court2_default_available){
-            td2.className='available'; td2.textContent='Available';
-          } else {
-            td2.className='not-available'; td2.textContent='Not Available';
-          }
-        }
+        if (settings.court2_default_available){ td2.className='available'; td2.textContent='Available'; }
+        else { td2.className='not-available'; td2.textContent='Not Available'; }
       }
       tr.appendChild(td2);
 
       tbody.appendChild(tr);
     }
+
+    setVenueLineForDay(iso);
   }
 
-  // Nav handlers
-  document.getElementById('prevDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()-1); displayHeaderDate(currentDate); generateSchedule(currentDate); });
-  document.getElementById('nextDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()+1); displayHeaderDate(currentDate); generateSchedule(currentDate); });
-  document.getElementById('todayBtn').addEventListener('click',()=>{ currentDate=new Date(); displayHeaderDate(currentDate); generateSchedule(currentDate); });
-  document.getElementById('datePicker').addEventListener('change',(e)=>{ if(e.target.value){ currentDate = new Date(e.target.value+'T00:00:00'); displayHeaderDate(currentDate); generateSchedule(currentDate);} });
+  async function loadSettings(){
+    const { data } = await supabase.from('settings').select('*').eq('id',1).maybeSingle();
+    if(data) settings = data;
+  }
+  async function loadEventsForDate(iso){
+    const { data } = await supabase.from('events').select('*').eq('date', iso).order('hour');
+    events = data || [];
+  }
 
-  // Realtime: refresh when events/settings change
-  supabase.channel('realtime:events')
-    .on('postgres_changes', { event:'*', schema:'public', table:'events' }, () => generateSchedule(currentDate))
-    .on('postgres_changes', { event:'*', schema:'public', table:'settings' }, async () => { await loadSettings(); generateSchedule(currentDate); })
-    .subscribe();
+  async function refresh(){
+    const iso = fmtISO(currentDate);
+    await loadSettings();
+    await loadEventsForDate(iso);
+    displayHeaderDate(currentDate);
+    generateSchedule(currentDate);
+  }
 
-  // Initial load
-  await loadSettings();
-  displayHeaderDate(currentDate);
-  generateSchedule(currentDate);
+  document.getElementById('prevDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()-1); refresh(); });
+  document.getElementById('nextDay').addEventListener('click',()=>{ currentDate.setDate(currentDate.getDate()+1); refresh(); });
+  document.getElementById('todayBtn').addEventListener('click',()=>{ currentDate=new Date(); refresh(); });
+  document.getElementById('datePicker').addEventListener('change',(e)=>{ if(e.target.value){ currentDate = new Date(e.target.value+'T00:00:00'); refresh(); } });
+
+  refresh();
 </script>
 </body>
 </html>
