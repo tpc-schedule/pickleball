@@ -38,12 +38,8 @@
     </div>
     <h1>Admin • The Pickleball Center <span class="pill">Schedule</span></h1>
     <div class="auth">
-      <div>
-        <label>Email</label><input id="email" placeholder="you@example.com">
-      </div>
-      <div>
-        <label>Password</label><input id="password" type="password" placeholder="••••••••">
-      </div>
+      <div><label>Email</label><input id="email" placeholder="you@example.com"></div>
+      <div><label>Password</label><input id="password" type="password" placeholder="••••••••"></div>
       <button id="loginBtn">Sign In</button>
       <button id="logoutBtn" class="hide">Sign Out</button>
       <span id="authState" class="muted"></span>
@@ -56,7 +52,7 @@
       <h1>Settings</h1>
       <div class="row">
         <div>
-          <label for="venue">Venue</label>
+          <label for="venue">Default Venue (optional)</label>
           <input id="venue" placeholder="WalterMart Sta. Maria" />
         </div>
         <div>
@@ -85,39 +81,21 @@
     <div class="card">
       <h1>Add / Update Event</h1>
       <div class="row">
-        <div>
-          <label for="date">Date</label>
-          <input type="date" id="date" />
+        <div><label for="date">Date</label><input type="date" id="date" /></div>
+        <div><label for="time">Start Time (hourly)</label><select id="time"></select></div>
+        <div><label for="court">Court</label>
+          <select id="court"><option value="1">Court 1</option><option value="2">Court 2</option></select>
         </div>
-        <div>
-          <label for="time">Start Time (hourly)</label>
-          <select id="time"></select>
-        </div>
-        <div>
-          <label for="court">Court</label>
-          <select id="court">
-            <option value="1">Court 1</option>
-            <option value="2">Court 2</option>
-          </select>
-        </div>
-        <div>
-          <label for="program">Program</label>
+        <div><label for="program">Program</label>
           <select id="program">
-            <option>Court Rental</option>
-            <option>Open Play</option>
-            <option>Clinic</option>
-            <option>Tournament</option>
-            <option>Maintenance</option>
-            <option>Free Trial</option>
-            <option>Not Available</option>
+            <option>Court Rental</option><option>Open Play</option><option>Clinic</option>
+            <option>Tournament</option><option>Maintenance</option><option>Free Trial</option><option>Not Available</option>
           </select>
         </div>
       </div>
       <div class="row">
-        <div>
-          <label for="title">Optional Title/Notes</label>
-          <input id="title" placeholder="e.g., Beginners Group" />
-        </div>
+        <div><label for="title">Optional Title/Notes</label><input id="title" placeholder="e.g., Beginners Group" /></div>
+        <div><label for="eventVenue">Venue for this date</label><input id="eventVenue" placeholder="e.g., WalterMart Sta. Maria" /></div>
         <div class="right" style="align-items:flex-end">
           <button id="saveEvent">Save / Update</button>
           <button id="deleteEvent">Delete This Slot</button>
@@ -129,50 +107,37 @@
     <div class="card">
       <h1>Events (selected date)</h1>
       <div class="row">
-        <div>
-          <label for="listDate">Pick Date to View</label>
-          <input type="date" id="listDate" />
-        </div>
-        <div style="align-self:flex-end">
-          <button id="refreshList">Refresh</button>
-        </div>
+        <div><label for="listDate">Pick Date to View</label><input type="date" id="listDate" /></div>
+        <div style="align-self:flex-end"><button id="refreshList">Refresh</button></div>
       </div>
       <table id="eventsTable">
-        <thead><tr><th>Time</th><th>Court</th><th>Program</th><th>Title</th></tr></thead>
+        <thead><tr><th>Time</th><th>Court</th><th>Program</th><th>Title / Venue</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- SUPABASE -->
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-  // ✅ Your project details
   const SUPABASE_URL = 'https://azjzxrvmpptgwvdlnezn.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6anp4cnZtcHB0Z3d2ZGxuZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODU3NzUsImV4cCI6MjA3MDU2MTc3NX0.bZXYXyuTjjieHSOpfHgBcwaZa0NX0aROhf9UvfcrJi4';
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // UI helpers
   const slotStartHour=9, slotEndStartHour=21;
   const $ = id => document.getElementById(id);
   const $$ = sel => Array.from(document.querySelectorAll(sel));
   const fmtHour = h => { const h12=(h%12)||12, am=h<12?'AM':'PM'; return String(h12).padStart(2,'0')+':00 '+am; };
 
-  // Fill hourly time options
   for(let h=slotStartHour; h<=slotEndStartHour; h++){
     const opt=document.createElement('option');
     opt.value=String(h);
     opt.textContent = fmtHour(h)+' - '+fmtHour(h+1);
     $('time').appendChild(opt);
   }
-
-  // Default dates
   $('date').valueAsDate = new Date();
   $('listDate').valueAsDate = new Date();
 
-  // AUTH
   async function updateAuthUI(session){
     if(session?.user){
       $('authState').textContent = 'Signed in as ' + (session.user.email||'');
@@ -195,26 +160,18 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if(error) throw error;
       updateAuthUI(data.session);
-    }catch(err){
-      alert(err.message || 'Failed to sign in');
-    }
+    }catch(err){ alert(err.message || 'Failed to sign in'); }
   };
+  $('logoutBtn').onclick = async ()=>{ await supabase.auth.signOut(); updateAuthUI(null); };
 
-  $('logoutBtn').onclick = async ()=>{
-    await supabase.auth.signOut();
-    updateAuthUI(null);
-  };
-
-  // Restore session on load
   const { data: { session } } = await supabase.auth.getSession();
   updateAuthUI(session);
-  supabase.auth.onAuthStateChange((_event, sess)=> updateAuthUI(sess));
+  supabase.auth.onAuthStateChange((_e, sess)=> updateAuthUI(sess));
 
-  // SETTINGS
   async function initSettings(){
     const { data, error } = await supabase.from('settings').select('*').eq('id',1).maybeSingle();
     if(error){ console.warn('Load settings error', error); return; }
-    const s = data || { venue:'WalterMart Sta. Maria', blocked_days:[0,1,2,3], court2_default_available:false };
+    const s = data || { venue:'', blocked_days:[0,1,2,3], court2_default_available:false };
     $('venue').value = s.venue || '';
     const set = new Set(s.blocked_days || []);
     $$('.day').forEach(cb => cb.checked = set.has(Number(cb.value)));
@@ -224,17 +181,14 @@
   $('saveSettings').onclick = async ()=>{
     try{
       const blocked = $$('.day').filter(cb=>cb.checked).map(cb=>Number(cb.value));
-      const venue = $('venue').value.trim() || 'WalterMart Sta. Maria';
+      const venue = $('venue').value.trim() || null;
       const court2Default = $('court2Default').checked;
       const { error } = await supabase.from('settings').upsert({ id:1, venue, blocked_days:blocked, court2_default_available:court2Default });
       if(error) throw error;
       alert('Settings saved.');
-    }catch(err){
-      alert(err.message || 'Failed to save settings');
-    }
+    }catch(err){ alert(err.message || 'Failed to save settings'); }
   };
 
-  // EVENTS (selected date list)
   async function refreshEventsForSelectedDate(){
     const dateISO = $('listDate').value || $('date').value;
     if(!dateISO) return;
@@ -243,14 +197,14 @@
     if(error){ tbody.innerHTML='<tr><td colspan="4">Error loading</td></tr>'; return; }
     (data||[]).forEach(e=>{
       const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${fmtHour(e.hour)} - ${fmtHour(e.hour+1)}</td><td>${e.court}</td><td>${e.program}</td><td>${e.title||''}</td>`;
+      const tv = [e.title, e.venue].filter(Boolean).join(' — ');
+      tr.innerHTML = `<td>${fmtHour(e.hour)} - ${fmtHour(e.hour+1)}</td><td>${e.court}</td><td>${e.program}</td><td>${tv}</td>`;
       tbody.appendChild(tr);
     });
   }
   $('refreshList').onclick = refreshEventsForSelectedDate;
   $('listDate').addEventListener('change', refreshEventsForSelectedDate);
 
-  // SAVE / DELETE EVENT
   $('saveEvent').onclick = async ()=>{
     try{
       const date = $('date').value;
@@ -258,14 +212,15 @@
       const court = Number($('court').value);
       const program = $('program').value;
       const title = $('title').value.trim();
+      const venue = $('eventVenue').value.trim() || null;
+
       if(!date || Number.isNaN(hour)){ alert('Please pick date and time.'); return; }
-      const { error } = await supabase.from('events').upsert({ date, hour, court, program, title });
+
+      const { error } = await supabase.from('events').upsert({ date, hour, court, program, title, venue });
       if(error) throw error;
       await refreshEventsForSelectedDate();
       alert('Saved.');
-    }catch(err){
-      alert(err.message || 'Failed to save');
-    }
+    }catch(err){ alert(err.message || 'Failed to save'); }
   };
 
   $('deleteEvent').onclick = async ()=>{
@@ -274,14 +229,11 @@
       const hour = Number($('time').value);
       const court = Number($('court').value);
       if(!date || Number.isNaN(hour)){ alert('Pick date and time to delete.'); return; }
-      const { error } = await supabase.from('events').delete()
-        .eq('date',date).eq('hour',hour).eq('court',court);
+      const { error } = await supabase.from('events').delete().eq('date',date).eq('hour',hour).eq('court',court);
       if(error) throw error;
       await refreshEventsForSelectedDate();
       alert('Deleted (if existed).');
-    }catch(err){
-      alert(err.message || 'Failed to delete');
-    }
+    }catch(err){ alert(err.message || 'Failed to delete'); }
   };
 </script>
 </body>
